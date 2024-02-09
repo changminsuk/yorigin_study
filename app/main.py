@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.apis.category.v1.home_category_router import router as home_category_router
-from app.tests.entities.collections import set_indexes
+from app.entities.collections import set_indexes
 
 app = FastAPI()
 
