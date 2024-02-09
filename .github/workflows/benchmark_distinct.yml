@@ -63,4 +63,4 @@ jobs:
         run: curl "http://localhost:8003/v1/home_categories/distinct?longitude=127.005926&latitude=37.490060"
 
       - name: Run benchmark
-        run: ab -n 1000 0 -c 100 "http://localhost:8003/v1/home_categories/distinct?longitude=127.005926&latitude=37.490060"
+        run: ab -n 10000 -c 100 "http://localhost:8003/v1/home_categories/distinct?longitude=127.005926&latitude=37.490060"
