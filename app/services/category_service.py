@@ -1,3 +1,5 @@
+import asyncio
+
 from app.entities.category.category_codes import CategoryCode
 from app.entities.collections.geo_json import GeoJsonPoint
 from app.entities.collections.shop.shop_collection import ShopCollection
@@ -19,3 +21,22 @@ async def get_distinct_home_categories(longitude: float, latitude: float) -> tup
             GeoJsonPoint(type="Point", coordinates=[longitude, latitude])
         )
     )
+
+
+async def get_home_categories_one_by_one(longitude: float, latitude: float) -> tuple[CategoryCode, ...]:
+    """
+    This method is used to get category codes by point intersects.
+
+    :arg
+        - longitude: float
+        - latitude: float
+    :return
+        - list[CategoryCode]
+    """
+    li = [
+        ShopCollection.exists_by_category_and_point_intersects(
+            code, GeoJsonPoint(type="Point", coordinates=[longitude, latitude])
+        )
+        for code in CategoryCode
+    ]
+    return tuple(code for code, exists in zip(CategoryCode, await asyncio.gather(*li)) if exists)

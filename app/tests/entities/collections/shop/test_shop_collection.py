@@ -153,3 +153,42 @@ async def test_shop_get_distinct_category_codes_by_point_intersects() -> None:
 
     # Then
     assert all(code in result_codes for code in [CategoryCode.CHICKEN, CategoryCode.BURGER])
+
+
+async def test_shop_exists_by_category_and_point_intersects_when_it_has_multiple_delivery_area() -> None:
+    # Given
+    await asyncio.gather(
+        ShopCollection.insert_one(
+            "치킨집",
+            [CategoryCode.CHICKEN],
+            [
+                ShopDeliveryAreaSubDocument(
+                    poly=GeoJsonPolygon(coordinates=[[[0, 0], [0, 10], [10, 10], [10, 0], [0, 0]]]),
+                ),
+                ShopDeliveryAreaSubDocument(
+                    poly=GeoJsonPolygon(coordinates=[[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]),
+                ),
+            ],
+        ),
+        ShopCollection.insert_one(
+            "피자집",
+            [CategoryCode.PIZZA],
+            [
+                ShopDeliveryAreaSubDocument(
+                    poly=GeoJsonPolygon(coordinates=[[[0, 0], [0, 2], [2, 2], [2, 0], [0, 0]]]),
+                ),
+            ],
+        ),
+    )
+
+    # When
+    found = await ShopCollection.exists_by_category_and_point_intersects(
+        CategoryCode.CHICKEN, GeoJsonPoint(coordinates=[5, 5])
+    )
+    not_found = await ShopCollection.exists_by_category_and_point_intersects(
+        CategoryCode.PIZZA, GeoJsonPoint(coordinates=[5, 5])
+    )
+
+    # Then
+    assert found is True
+    assert not_found is False

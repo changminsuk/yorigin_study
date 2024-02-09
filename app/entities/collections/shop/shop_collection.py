@@ -17,6 +17,39 @@ class ShopCollection:
     _collection = AsyncIOMotorCollection(db, "shops")
 
     @classmethod
+    async def set_index(cls) -> None:
+        """
+        This method is used to set index for the collection.
+        폴리곤 + 카테고리 코드 복합 인덱스를 설정합니다.
+        """
+        await cls._collection.create_index(
+            [
+                ("delivery_areas.poly", pymongo.GEOSPHERE),
+                ("category_codes", pymongo.ASCENDING),
+            ]
+        )
+
+    @classmethod
+    async def exists_by_category_and_point_intersects(cls, category_code: CategoryCode, point: GeoJsonPoint) -> bool:
+        """
+        This method is used to check if the shop exists by category and point intersects.
+
+        :arg
+            - category_code: CategoryCode
+            - point: GeoJsonPoint
+        :return
+            - bool
+        """
+        cnt = await cls._collection.count_documents(
+            {
+                "category_codes": category_code,
+                "delivery_areas.poly": {"$geoIntersects": {"$geometry": asdict(point)}},
+            },
+            limit=1,
+        )
+        return bool(cnt)
+
+    @classmethod
     async def point_intersects(cls, point: GeoJsonPoint) -> list[ShopDocument]:
         return [
             cls._parse(result)
@@ -61,10 +94,6 @@ class ShopCollection:
             category_codes=category_codes,
             delivery_areas=delivery_areas,
         )
-
-    @classmethod
-    async def set_index(cls) -> None:
-        await cls._collection.create_index([("delivery_areas.poly", pymongo.GEOSPHERE)])
 
     @classmethod
     def _parse(cls, result: dict[str, Any]) -> ShopDocument:
