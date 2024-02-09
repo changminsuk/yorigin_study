@@ -1,0 +1,75 @@
+name: Benchmark cached
+
+on: [push]
+
+jobs:
+  benchmark-cached:
+    runs-on: ubuntu-22.04
+    services:
+      mongodb:
+        image: bitnami/mongodb:5.0.16
+        ports:
+          - 27017:27017
+        env:
+          ALLOW_EMPTY_PASSWORD: yes
+        options: >-
+          --health-cmd "echo 'db.stats().ok' | mongo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7.0.12
+        ports:
+          - 127.0.0.1:6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out the codes
+        uses: actions/checkout@v2
+
+      - name: Setup python environment
+        id: setup-python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+
+      - name: Cache Poetry
+        id: cache-poetry
+        uses: actions/cache@v2
+        with:
+          key: poetry-1.4.2
+          path: ~/.local/
+
+      - name: Install Poetry
+        if: steps.cache-poetry.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 - --version 1.4.2
+
+      - name: Register Poetry bin
+        run: echo "${HOME}/.poetry/bin" >> $GITHUB_PATH
+
+      - name: Cache dependencies
+        id: cache-venv
+        uses: actions/cache@v2
+        with:
+          key: python-${{ steps.setup-python.outputs.python-version }}-poetry-lock-${{ hashFiles('poetry.lock') }}-toml-${{ hashFiles('pyproject.toml') }}-poetry-1.4.2
+          path: /home/runner/.cache/pypoetry/virtualenvs/
+
+      - name: Install dependencies
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: poetry install --no-root
+
+      - name: Run server
+        run: nohup poetry run gunicorn app.main:app --worker-class=uvicorn.workers.UvicornWorker --workers=4 --bind=127.0.0.1:8003 &
+
+      - name: Insert into mongodb
+        run: poetry run python assets/insert_shops.py
+
+      - name: Curl test
+        run: curl "http://localhost:8003/v1/home_categories/cached?longitude=127.005926&latitude=37.490060"
+
+      - name: Run benchmark
+        run: ab -n 10000 -c 100 "http://localhost:8003/v1/home_categories/cached?longitude=127.005926&latitude=37.490060"

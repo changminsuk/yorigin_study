@@ -7,6 +7,7 @@ from app.dtos.category.category_response import CategoryResponse
 from app.dtos.category.coordinates_request import CoordinatesRequest
 from app.services.category_service import (
     get_distinct_home_categories,
+    get_home_categories_cached,
     get_home_categories_one_by_one,
 )
 
@@ -39,3 +40,17 @@ async def api_get_categories_one_by_one(
     return CategoryResponse(
         categories=await get_home_categories_one_by_one(coordinates.longitude, coordinates.latitude)
     )
+
+
+@router.get(
+    "/cached",
+    description="This method is used to get category codes by point intersects with cache.",
+    response_class=ORJSONResponse,
+)
+async def api_get_categories_cached(
+    coordinates: Annotated[CoordinatesRequest, Depends(CoordinatesRequest)]
+) -> CategoryResponse:
+    """
+    This method is used to get category codes by point intersects with cache.
+    """
+    return CategoryResponse(categories=await get_home_categories_cached(coordinates.longitude, coordinates.latitude))
