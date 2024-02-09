@@ -1,6 +1,7 @@
 from dataclasses import asdict
 from typing import Any
 
+import pymongo
 from motor.motor_asyncio import AsyncIOMotorCollection
 
 from app.entities.category.category_codes import CategoryCode
@@ -24,12 +25,16 @@ class ShopCollection:
             ).to_list(None)
         ]
 
-    """
-    This method is used to get distinct category codes by point intersects. (중복 제거)
-    """
-
     @classmethod
     async def get_distinct_category_codes_by_point_intersects(cls, point: GeoJsonPoint) -> list[CategoryCode]:
+        """
+        This method is used to get distinct category codes by point intersects. (중복 제거)
+
+        :arg
+            - point: GeoJsonPoint
+        :return
+            - list[CategoryCode]
+        """
         return [
             CategoryCode(category_code)
             for category_code in await cls._collection.distinct(
@@ -56,6 +61,10 @@ class ShopCollection:
             category_codes=category_codes,
             delivery_areas=delivery_areas,
         )
+
+    @classmethod
+    async def set_index(cls) -> None:
+        await cls._collection.create_index([("delivery_areas.poly", pymongo.GEOSPHERE)])
 
     @classmethod
     def _parse(cls, result: dict[str, Any]) -> ShopDocument:
